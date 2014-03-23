@@ -1,0 +1,17 @@
+---
+
+- name: "add ruby 2.1 repository"
+  apt_repository: repo='ppa:brightbox/ruby-ng'
+  sudo: yes
+
+- name: "install ruby 2.1"
+  apt: pkg=ruby2.1 state=latest
+  sudo: yes
+
+- name: "install ruby 2.1 development headers"
+  apt: pkg=ruby2.1-dev state=latest
+  sudo: yes
+
+- name: "install bundler"
+  command: bash -lc "gem install bundler"
+  sudo: yes

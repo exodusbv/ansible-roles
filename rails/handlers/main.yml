@@ -1,0 +1,5 @@
+---
+
+- name: "restart {{rails.application}}"
+  service: name={{rails.application}} state=restarted
+  sudo: yes

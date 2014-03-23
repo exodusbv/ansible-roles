@@ -1,0 +1,54 @@
+---
+
+#
+# This is an example Ansible playbook that demonstrates the
+# usage of the roles in this repository.
+#
+# Note that the variables are scoped by role name.
+#
+
+- hosts: all
+  user: deploy
+
+  vars:
+    common:
+      user: deploy
+      password: <open-ssl-password-hash>
+      public_keys:
+        - ../../../files/your_key.id_rsa.pub
+
+        # ^--- this path is relative to the role, not
+        #      relative to the playbook.yml file
+
+    rails:
+      deploy_to: /var/www
+      application: your-app
+      repo: git@github.com:example/your-app.git
+      branch: master
+
+    nginx:
+      default_hostname: server.example.com
+
+      # ^--- default_hostname generates an extra nginx
+      #      hostname that is equal to:
+      #
+      #      {{rails.application}}.{{nginx.default_hostname}}
+      #
+      #      in this case:
+      #
+      #      your-app.server.example.com
+
+    env:
+      RAILS_ENV: production
+      MYSQL_PASSWORD: p4ssw0rd
+      MYSQL_DATABASE: your_app
+      MYSQL_USER: your_app
+      HOSTNAME: your-app.com
+      PORT: 5000
+
+  roles:
+    - common
+    - ruby
+    - nginx
+    - mysql
+    - rails

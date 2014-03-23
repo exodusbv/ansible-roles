@@ -1,0 +1,107 @@
+---
+
+#
+# Dependencies
+#
+
+- name: "install rails dependencies"
+  tags: rails
+  sudo: yes
+  apt: pkg={{item}} state=latest
+  with_items:
+    - nodejs
+
+- name: "make sure the '{{rails.deploy_to}}' directory exists"
+  tags: rails
+  file: path={{rails.deploy_to}}/{{rails.application}} state=directory owner={{common.user}} group={{common.user}}
+
+- name: "update git repository: '{{rails.repo}}'"
+  tags: rails
+  git: repo={{rails.repo}}
+       dest={{rails.deploy_to}}/{{rails.application}}
+       depth=1
+       version={{rails.branch}}
+       accept_hostkey=True
+  sudo: False
+
+#
+# Bundler
+#
+
+- name: "make sure the 'vendor/bundle' directory exists"
+  tags: rails
+  file: path={{rails.deploy_to}}/{{rails.application}}/vendor/bundle state=directory owner={{common.user}} group={{common.user}}
+
+- name: "bundle install"
+  tags: rails
+  command: "bundle install --deployment --without=development,test --path=vendor/bundle chdir={{rails.deploy_to}}/{{rails.application}}"
+  environment: env
+
+#
+# Database
+#
+
+- name: "create database '{{env.MYSQL_DATABASE}}'"
+  tags: rails
+  mysql_db: name={{env.MYSQL_DATABASE}} state=present
+  sudo: yes
+
+- name: "create database user: '{{env.MYSQL_USER}}'"
+  tags: rails
+  mysql_user: name={{env.MYSQL_USER}} password={{env.MYSQL_PASSWORD}} priv={{env.MYSQL_DATABASE}}.*:ALL
+  sudo: yes
+
+#
+# Environment and configuration
+#
+
+- name: "write {{rails.deploy_to}}/{{rails.application}}/.env"
+  tags: rails
+  template: src=env.j2 dest={{rails.deploy_to}}/{{rails.application}}/.env owner={{common.user}} mode=0755
+
+- name: "remove database.yml"
+  command: "rm -f {{rails.deploy_to}}/{{rails.application}}/config/database.yml"
+  tags: rails
+
+- name: "write {{rails.deploy_to}}/{{rails.application}}/config/database.yml file"
+  tags: rails
+  template: src=database_yml.j2 dest={{rails.deploy_to}}/{{rails.application}}/config/database.yml owner={{common.user}} mode=0644
+
+#
+# Migrations and assets
+#
+
+- name: "migrate database"
+  tags: rails
+  command: "bundle exec rake db:migrate chdir={{rails.deploy_to}}/{{rails.application}}"
+  environment: env
+
+- name: "precompile assets"
+  tags: rails
+  command: "bundle exec rake assets:precompile chdir={{rails.deploy_to}}/{{rails.application}}"
+  environment: env
+
+#
+# Web server config files
+#
+
+- name: "export init scripts from foreman"
+  tags: rails
+  command: "bundle exec foreman export upstart /etc/init -p {{env.PORT}} -a {{rails.application}} -u {{common.user}} chdir={{rails.deploy_to}}/{{rails.application}}"
+  sudo: yes
+  notify:
+    - "restart {{rails.application}}"
+
+- name: "create nginx config for '{{rails.application}}'"
+  tags: rails
+  template: src=nginx_conf.j2 dest=/etc/nginx/sites-available/{{rails.application}}.conf
+  sudo: yes
+  notify:
+    - "reload nginx"
+
+- name: "enable '{{rails.application}}' site in nginx"
+  tags: rails
+  file: src=/etc/nginx/sites-available/{{rails.application}}.conf dest=/etc/nginx/sites-enabled/{{rails.application}}.conf owner=root state=link
+  sudo: yes
+  notify:
+    - "reload nginx"

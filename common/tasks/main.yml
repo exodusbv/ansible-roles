@@ -1,0 +1,31 @@
+---
+
+- name: "ensure apt-cache is up to date"
+  tags: common
+  apt: update_cache=yes cache_valid_time=3600
+  sudo: yes
+
+- name: "install dependencies"
+  tags: common
+  apt: pkg={{item}} state=latest
+  sudo: yes
+  with_items:
+    - build-essential
+    - python-software-properties
+    - python-apt
+    - git-core
+
+- name: "add user '{{common.user}}'"
+  tags: common
+  user: name={{common.user}} password={{common.password}} shell=/bin/bash createhome=yes
+  sudo: yes
+
+- name: "set up passwordless sudo for user '{{common.user}}'"
+  tags: common
+  template: src=sudoers.j2 dest=/etc/sudoers.d/99-{{common.user}} owner=root mode=0644
+  sudo: yes
+
+- name: "add authorized keys for user '{{common.user}}'"
+  tags: common
+  authorized_key: user={{common.user}} key="{{item}}"
+  with_file: common.public_keys

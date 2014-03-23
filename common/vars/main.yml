@@ -1,0 +1,6 @@
+---
+
+common:
+  user: deploy
+  password: $1$8l6ImXna$iJXUrGWzJNq2FGnhRGGQD0 # "deploy"
+  public_keys: []
